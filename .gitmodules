@@ -1,0 +1,3 @@
+[submodule "include/hoserial"]
+	path = include/hoserial
+	url = https://github.com/reslaid32/hoserial
