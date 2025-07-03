@@ -1,7 +1,8 @@
-#include "argparser/argparser.hh"
-#include "hoserial/hoserial.hh"
-#include "hoserial/metadata.hh"
-#include "view/vector_view.hh"
+
+#include <argparser/argparser.hh>
+#include <hoserial/hoserial.hh>
+#include <hoserial/metadata.hh>
+#include <view/vector_view.hh>
 
 #include <cstdarg>
 #include <cstddef>
@@ -52,6 +53,7 @@ struct argstate
   hoserial::Format output_format = hoserial::Format::JSON;
 
   std::optional<std::string_view> file;
+  std::optional<std::string_view> output_file;
 };
 
 __attribute__ ((noreturn)) void
@@ -101,6 +103,15 @@ parse (const char *_exec, const argparser::ArgParser &&parser, argstate &state)
       state.tabsize = std::stoi (std::string (*t_opt));
     }
 
+  auto out_opt = parser.get_option ("--output");
+  if (!out_opt.has_value ())
+    out_opt = parser.get_option ("-o");
+
+  if (out_opt.has_value ())
+    {
+      state.output_file = *out_opt;
+    }
+
   if (auto it_opt = parser.get_option ("--input-type"))
     state.input_format = parse_format (_exec, *it_opt);
   else if (auto it_opt_short = parser.get_option ("-it"))
@@ -114,6 +125,15 @@ parse (const char *_exec, const argparser::ArgParser &&parser, argstate &state)
   auto file_opt = parser.get_option ("--file");
   if (!file_opt.has_value ())
     file_opt = parser.get_option ("-f");
+
+  if (!file_opt.has_value ())
+    {
+      auto pos_args = parser.positional_args ();
+      if (!pos_args.empty ())
+        {
+          file_opt = pos_args[0];
+        }
+    }
 
   if (file_opt.has_value ())
     {
@@ -186,7 +206,20 @@ main (int argc, char *argv[])
       auto dumper = dumper_factory.create_dumper (state.output_format);
       auto converted_node
           = converter_factory.convert (state.output_format, node);
-      dumper->dump (std::cout, converted_node, state.tabsize);
+      if (state.output_file)
+        {
+          std::ofstream outfile (std::string (*state.output_file),
+                                 std::ios::binary);
+          if (!outfile)
+            __detail::throw_error (argv[0],
+                                   "could not open output file '%s'\n",
+                                   state.output_file->data ());
+          dumper->dump (outfile, converted_node, state.tabsize);
+        }
+      else
+        {
+          dumper->dump (std::cout, converted_node, state.tabsize);
+        }
     }
   else
     {

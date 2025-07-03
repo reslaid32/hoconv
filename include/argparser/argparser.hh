@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace argparser
 {
@@ -40,13 +41,23 @@ public:
     return std::nullopt;
   }
 
-  view_type
+  std::vector<char *>
   positional_args () const
   {
-    size_t start = 1;
-    while (start < args_.size () && args_[start][0] == '-')
-      ++start;
-    return view_type (args_.data () + start, args_.size () - start);
+    std::vector<char *> positions;
+    for (size_t i = 1; i < args_.size (); ++i)
+      {
+        if (args_[i][0] == '-')
+          {
+            if (i + 1 < args_.size () && args_[i + 1][0] != '-')
+              ++i;
+          }
+        else
+          {
+            positions.push_back (args_[i]);
+          }
+      }
+    return positions;
   }
 
   view_type
